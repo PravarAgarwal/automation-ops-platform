@@ -1,0 +1,62 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+from app import models, schemas # Classes created by me for the database and Pydantic schemas
+from app.database import SessionLocal, get_db
+
+from typing import List
+
+'''
+APIRouter → group endpoints
+Session → DB session type
+models → DB tables
+schemas → input/output validation
+'''
+
+router = APIRouter(
+    prefix="/jobs",
+    tags=["jobs"],
+)
+
+@router.post("/", response_model=schemas.JobResponse)
+def create_job(job: schemas.JobCreate, db: Session = Depends(get_db)):
+    db_job = models.Job(name=job.name, script_type=job.script_type)
+    db.add(db_job)
+    db.commit()
+    # at this point (db.refresh(db_job)), db_job gets its ID from the DB
+    db.refresh(db_job)
+    return db_job
+
+@router.get("/", response_model=List[schemas.JobResponse])
+def get_jobs(db: Session = Depends(get_db)):
+    jobs = db.query(models.Job).all()
+    return jobs
+
+@router.get("/{job_id}", response_model=schemas.JobResponse)
+def get_job(job_id: int, db: Session = Depends(get_db)):
+    job = db.query(models.Job).filter(models.Job.id == job_id).first()
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
+
+@router.get("/{job_name}", response_model=schemas.JobResponse)
+def get_job_by_name(job_name: str, db: Session = Depends(get_db)):
+    job = db.query(models.Job).filter(models.Job.name == job_name).first()
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
+
+@router.get("/{script_type}", response_model=List[schemas.JobResponse])
+def get_jobs_by_script_type(script_type: str, db: Session = Depends(get_db)):
+    jobs = db.query(models.Job).filter(models.Job.script_type == script_type).all()
+    return jobs
+
+@router.delete("/{job_id}", response_model=schemas.JobResponse)
+def delete_job(job_id: int, db: Session = Depends(get_db)):
+    job = db.query(models.Job).filter(models.Job.id == job_id).first()
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    db.delete(job)
+    db.commit()
+    return job
+
