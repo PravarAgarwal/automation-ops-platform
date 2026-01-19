@@ -1,3 +1,35 @@
+# Automation Ops Platform
+
+A backend service to manage and execute automation jobs (Python & Bash),
+built using FastAPI and SQLAlchemy.
+
+## Features
+
+- Create automation jobs
+- List all jobs
+- Fetch job by ID
+- SQLite-backed persistence
+- Clean API contracts using Pydantic
+- Dependency-managed DB sessions
+
+## Tech Stack
+
+- Python
+- FastAPI
+- SQLAlchemy
+- Pydantic
+- SQLite
+
+## Setup Instructions
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+
+
+
 the end to end flow is somewhat interesting:
 
 Client JSON
@@ -30,3 +62,4 @@ Important Note related to sessions:
 Session is a class that is imported from SQLAlchemy.orm
 LocalSession is a callable object that is being made with the help of sessionmaker, sessionmaker is like a session factory
 when get db function creates a db instance by calling LocalSession(), it is esentially creating a Session object. This session object helps linking FastAPI with the dB.
+```

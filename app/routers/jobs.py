@@ -39,17 +39,30 @@ def get_job(job_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Job not found")
     return job
 
-@router.get("/{job_name}", response_model=schemas.JobResponse)
+@router.get("/by_name/{job_name}", response_model=schemas.JobResponse)
 def get_job_by_name(job_name: str, db: Session = Depends(get_db)):
     job = db.query(models.Job).filter(models.Job.name == job_name).first()
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
     return job
 
-@router.get("/{script_type}", response_model=List[schemas.JobResponse])
+@router.get("/by_script_type/{script_type}", response_model=List[schemas.JobResponse])
 def get_jobs_by_script_type(script_type: str, db: Session = Depends(get_db)):
     jobs = db.query(models.Job).filter(models.Job.script_type == script_type).all()
     return jobs
+
+@router.patch("/{job_id}", response_model=schemas.JobResponse)
+def update_job(job_id: int, job_update: schemas.JobUpdate, db: Session = Depends(get_db)):
+    job = db.query(models.Job).filter(models.Job.id == job_id).first()
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job_update.name is not None:
+        job.name = job_update.name
+    if job_update.script_type is not None:
+        job.script_type = job_update.script_type
+    db.commit()
+    db.refresh(job)
+    return job
 
 @router.delete("/{job_id}", response_model=schemas.JobResponse)
 def delete_job(job_id: int, db: Session = Depends(get_db)):

@@ -24,7 +24,7 @@ from fastapi import FastAPI
 
 from app.database import engine, Base
 from app import models
-from app.routers import jobs
+from app.routers import jobs, health
 
 # create all tables, tables should be created at the start of the code, so this line is here.
 Base.metadata.create_all(bind=engine)
@@ -32,3 +32,4 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(title="Automation Ops Platform")
 
 app.include_router(jobs.router)
+app.include_router(health.router)
