@@ -21,10 +21,31 @@ You never hardcode secrets.
 from pydantic import BaseModel
 from typing import Optional
 from enum import Enum
+from datetime import datetime
 
 class ScriptType(str, Enum):
     python = "python"
     bash = "bash"
+
+class ExecutionStatus(str, Enum):
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+
+class JobExecutionResponse(BaseModel):
+    id: int
+    job_id: int
+    status: ExecutionStatus
+    stdout: Optional[str]
+    stderr: Optional[str]
+    exit_code: Optional[int]
+    created_at: datetime
+    finished_at: Optional[datetime]
+
+    # this tells pydantic that the data might come from a SQLAlchemy model
+    class Config:
+        from_attributes = True
 
 class JobCreate(BaseModel):
     name: str
