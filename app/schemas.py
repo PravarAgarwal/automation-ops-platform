@@ -22,16 +22,11 @@ from pydantic import BaseModel
 from typing import Optional
 from enum import Enum
 from datetime import datetime
+from app.models import ExecutionStatus
 
 class ScriptType(str, Enum):
     python = "python"
     bash = "bash"
-
-class ExecutionStatus(str, Enum):
-    PENDING = "PENDING"
-    RUNNING = "RUNNING"
-    SUCCESS = "SUCCESS"
-    FAILED = "FAILED"
 
 class JobExecutionResponse(BaseModel):
     id: int
@@ -50,15 +45,18 @@ class JobExecutionResponse(BaseModel):
 class JobCreate(BaseModel):
     name: str
     script_type: ScriptType
+    script_content: str
 
 class JobUpdate(BaseModel):
     name: Optional[str] = None
     script_type: Optional[ScriptType] = None
+    script_content: Optional[str] = None
 
 class JobResponse(BaseModel):
     id: int
     name: str
     script_type: ScriptType
+    script_content: str
 
     # this tells pydantic that the data might come from a SQLAlchemy model
     class Config:

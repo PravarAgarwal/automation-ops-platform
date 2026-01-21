@@ -44,8 +44,13 @@ class Job(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
     script_type = Column(String, index=True)
+    script_content = Column(Text, nullable=False)
 
-    executions = relationship("JobExecution", back_populates="job", cascade="all, delete-orphan")
+    executions = relationship(
+        "JobExecution",
+        back_populates="job",
+        cascade="all, delete-orphan"
+    )
 
 class JobExecution(Base):
     __tablename__ = "job_executions"
