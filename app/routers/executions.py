@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.database import get_db
+from app.database import SessionLocal, get_db
 from app import models, schemas
+
+from app.services.executor import execute_job
 
 router = APIRouter(
     prefix="/executions", tags=["executions"]
@@ -17,7 +19,7 @@ def get_execution(execution_id: int, db: Session = Depends(get_db)):
     return execution
 
 @router.post("/{job_id}/run")
-def run_job(job_id: int, db: Session = Depends(get_db)):
+def run_job(job_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     job = db.query(models.Job).filter(models.Job.id == job_id).first()
 
     if job is None:
@@ -31,6 +33,8 @@ def run_job(job_id: int, db: Session = Depends(get_db)):
     db.add(execution)
     db.commit()
     db.refresh(execution)
+
+    background_tasks.add_task(execute_job, execution.id, SessionLocal())
 
     return {
         "execution_id": execution.id,

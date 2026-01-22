@@ -20,7 +20,9 @@ router = APIRouter(
 
 @router.post("/", response_model=schemas.JobResponse)
 def create_job(job: schemas.JobCreate, db: Session = Depends(get_db)):
-    db_job = models.Job(name=job.name, script_type=job.script_type)
+    db_job = models.Job(name=job.name, 
+                        script_type=job.script_type,
+                        script_content=job.script_content)
     db.add(db_job)
     db.commit()
     # at this point (db.refresh(db_job)), db_job gets its ID from the DB
