@@ -24,6 +24,21 @@ def run_job(job_id: int, background_tasks: BackgroundTasks, db: Session = Depend
 
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
+    
+    existing_execution = (
+        db.query(models.JobExecution)
+        .filter(
+            models.JobExecution.job_id == job.id,
+            models.JobExecution.status == models.ExecutionStatus.RUNNING,
+        )
+        .first()
+    )
+
+    if existing_execution:
+        raise HTTPException(
+            status_code=409,
+            detail="Job is already Running."
+        )
 
     execution = models.JobExecution(
         job_id=job.id,
