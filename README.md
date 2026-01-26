@@ -1,65 +1,273 @@
-# Automation Ops Platform
+# 🛠 Automation Job Execution Platform
 
-A backend service to manage and execute automation jobs (Python & Bash),
-built using FastAPI and SQLAlchemy.
+A backend service to **store, execute, and track automation scripts asynchronously**, with execution safety, status tracking, and log capture.
 
-## Features
+This project simulates an internal automation platform commonly used in trading firms, DevOps teams, or data engineering workflows.
 
-- Create automation jobs
-- List all jobs
-- Fetch job by ID
-- SQLite-backed persistence
-- Clean API contracts using Pydantic
-- Dependency-managed DB sessions
+---
 
-## Tech Stack
+## 🚀 Features
 
-- Python
-- FastAPI
-- SQLAlchemy
-- Pydantic
-- SQLite
+- Create automation jobs (Python / Bash)
+- Execute jobs asynchronously (non-blocking API)
+- Track execution lifecycle:
+  - `PENDING → RUNNING → SUCCESS / FAILED`
+- Capture:
+  - `stdout`
+  - `stderr`
+  - exit codes
+- Protect the system from:
+  - Infinite loops (execution timeouts)
+  - Long-running scripts
+- Clean, modular project structure
+- OpenAPI documentation via FastAPI
 
-## Setup Instructions
+---
+
+## 🧠 Why This Project?
+
+Many internal systems need to run scripts **without blocking APIs**, while still:
+
+- Knowing execution status
+- Capturing logs
+- Handling failures safely
+
+This project focuses on **backend system design**, not UI.
+
+---
+
+## 🏗 High-Level Architecture
+
+```
+
+Client
+|
+| HTTP (REST)
+v
+FastAPI API Layer
+|
+| SQLAlchemy ORM
+v
+Database (Jobs, Executions)
+|
+| BackgroundTasks
+v
+Execution Worker
+|
+| subprocess
+v
+Script Execution (Python / Bash)
+
+```
+
+**Key idea:**
+Job execution is **decoupled** from request handling.
+
+---
+
+## 🧩 Tech Stack
+
+- **FastAPI** — API framework
+- **SQLAlchemy** — ORM
+- **SQLite** — local development database
+- **BackgroundTasks** — asynchronous execution
+- **Pydantic** — request/response validation
+
+---
+
+## 📁 Project Structure
+
+```
+
+app/
+├── main.py # Application entry point
+├── database.py # DB engine & session
+├── models.py # SQLAlchemy ORM models
+├── schemas.py # Pydantic schemas
+├── routers/
+│ ├── jobs.py # Job CRUD APIs
+│ └── executions.py # Execution APIs
+├── services/
+│ └── executor.py # Job execution logic
+└── config.py # App configuration
+
+```
+
+---
+
+## ⚙️ Setup & Run Locally
+
+### 1️⃣ Clone the repository
 
 ```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-
-
-
-the end to end flow is somewhat interesting:
-
-Client JSON
-|
-v
-JobCreate (validate input)
-|
-v
-Business Logic
-|
-v
-Job Model (DB)
-|
-v
-JobResponse (serialize output)
-|
-v
-JSON Response
-
-initially
-we started by creating our config file, after that we created our database file, database file imported data fixed data like dB URL from config file, the database file contains the logic to for engine creation (the way through which FastAPI will interact with the database),
-session factory is also created in it (session to use db for various bussiness logic purposes)
-
-base ORM class is also initiated in this file.
-
-after that we created our models file which contains the type of data that is required to be stored in the database.
-the data class that is defined in this file will inherit from the base class that we initiated in the database.py file.
-
-Important Note related to sessions:
-Session is a class that is imported from SQLAlchemy.orm
-LocalSession is a callable object that is being made with the help of sessionmaker, sessionmaker is like a session factory
-when get db function creates a db instance by calling LocalSession(), it is esentially creating a Session object. This session object helps linking FastAPI with the dB.
+git clone <repo-url>
+cd automation-platform
 ```
+
+### 2️⃣ Create and activate virtual environment
+
+```bash
+python -m venv venv
+source venv/bin/activate   # Windows: venv\Scripts\activate
+```
+
+### 3️⃣ Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 4️⃣ Start the server
+
+```bash
+uvicorn app.main:app --reload
+```
+
+Server will be available at:
+
+```
+http://127.0.0.1:8000
+```
+
+API documentation:
+
+```
+http://127.0.0.1:8000/docs
+```
+
+---
+
+## 📌 Example Usage
+
+### Create a Job
+
+```http
+POST /jobs
+```
+
+```json
+{
+  "name": "hello-world",
+  "script_type": "python",
+  "script_content": "print('Hello from execution')"
+}
+```
+
+---
+
+### Run a Job
+
+```http
+POST /executions/{job_id}/run
+```
+
+Response:
+
+```json
+{
+  "execution_id": 1,
+  "status": "PENDING"
+}
+```
+
+---
+
+### Check Execution Status
+
+```http
+GET /executions/{execution_id}
+```
+
+```json
+{
+  "id": 1,
+  "job_id": 1,
+  "status": "SUCCESS",
+  "stdout": "Hello from execution\n",
+  "stderr": "",
+  "exit_code": 0,
+  "created_at": "...",
+  "finished_at": "..."
+}
+```
+
+---
+
+## 🔐 Execution Safety
+
+The system includes safeguards against:
+
+- **Infinite loops** (execution timeout)
+- **Long-running scripts**
+- **Blocking API threads**
+
+### Example test case
+
+```python
+while True:
+    pass
+```
+
+Result:
+
+- Execution fails gracefully
+- API remains responsive
+
+---
+
+## 🔄 Why BackgroundTasks (Not Celery)?
+
+This project intentionally starts with **FastAPI BackgroundTasks** to keep the system simple and understandable.
+
+### Tradeoffs
+
+| BackgroundTasks | Celery              |
+| --------------- | ------------------- |
+| Simple setup    | Distributed workers |
+| Single-process  | Horizontal scaling  |
+| Good for demos  | Production-grade    |
+
+📌 **Future versions** can migrate execution to Celery + Redis.
+
+---
+
+## ✅ System Guarantees
+
+- API requests are never blocked by job execution
+- Infinite loops are safely terminated via execution timeout
+- Output size is capped to prevent memory or database issues
+- Concurrent execution of the same job is prevented
+- Execution state is fully persisted and queryable
+- System health can be checked via `/health`
+
+## 🚧 Known Limitations
+
+- BackgroundTasks are not suitable for distributed workloads
+- SQLite is used for local development only
+- No authentication/authorization yet
+- Script execution is not sandboxed
+
+These are **intentional design choices** for clarity.
+
+---
+
+## 🔮 Future Improvements
+
+- Migrate execution to Celery + Redis
+- Add per-job execution time limits
+- Add retries & scheduling
+- Add authentication
+- Containerized execution (Docker)
+- Frontend dashboard
+
+---
+
+## 🧾 Resume Summary
+
+> Designed and implemented an asynchronous job execution platform using FastAPI and SQLAlchemy, featuring execution tracking, failure handling, and safety mechanisms such as timeouts and output limits.
+
+---
+
+## 🙌 Author
+
+Built as a learning and portfolio project to demonstrate backend system design and asynchronous execution patterns.
