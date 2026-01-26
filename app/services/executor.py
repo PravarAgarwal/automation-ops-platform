@@ -3,6 +3,7 @@ from subprocess import TimeoutExpired
 from datetime import datetime
 from sqlalchemy.orm import Session
 from app import models
+from app.config import logger
 
 def execute_job(execution_id: int, db: Session):
     execution = (
@@ -16,8 +17,8 @@ def execute_job(execution_id: int, db: Session):
 
     job = execution.job
 
-    print("Executing job:", execution_id)
-    print("Script content:", job.script_content)
+    logger.info(f'Executing job: {execution_id}')
+    logger.info(f"Script content: {job.script_content}")
 
     execution.status = models.ExecutionStatus.RUNNING
     db.commit()
@@ -40,9 +41,8 @@ def execute_job(execution_id: int, db: Session):
         else:
             raise ValueError("Unsupported script type")
 
-        print("Return code:", result.returncode)
-        print("STDOUT:", repr(result.stdout))
-        print("STDERR:", repr(result.stderr))
+        
+        logger.info(f"Return code: {result.returncode}")
 
         MAX_OUTPUT_SIZE = 10_000  # characters
 
@@ -53,17 +53,21 @@ def execute_job(execution_id: int, db: Session):
 
         if result.returncode == 0:
             execution.status = models.ExecutionStatus.SUCCESS
+            logger.info(f"STDOUT: {repr(result.stdout)}")
         else:
             execution.status = models.ExecutionStatus.FAILED
+            logger.error(f"STDERR: {repr(result.stderr)}")
 
     except TimeoutExpired as e:
         execution.stderr = "Execution timed out"
+        logger.error(execution.stderr)
         execution.status = models.ExecutionStatus.FAILED
         execution.finished_at = datetime.utcnow()
         db.commit()
 
     except Exception as e:
         execution.stderr = str(e)
+        logger.error("Executor Exception: {execution.stderr}")
         execution.status = models.ExecutionStatus.FAILED
         execution.finished_at = datetime.utcnow()
 
