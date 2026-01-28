@@ -100,7 +100,7 @@ app/
 ### 1️⃣ Clone the repository
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/PravarAgarwal/automation-ops-platform.git
 cd automation-platform
 ```
 
