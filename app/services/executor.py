@@ -6,24 +6,31 @@ from app import models
 from app.config import logger
 
 def execute_job(execution_id: int, db: Session):
-    execution = (
-        db.query(models.JobExecution)
-        .filter(models.JobExecution.id == execution_id)
-        .first()
-    )
-
-    if execution is None:
-        return
-
-    job = execution.job
-
-    logger.info(f'Executing job: {execution_id}')
-    logger.info(f"Script content: {job.script_content}")
-
-    execution.status = models.ExecutionStatus.RUNNING
-    db.commit()
-
     try:
+        execution = (
+            db.query(models.JobExecution)
+            .filter(models.JobExecution.id == execution_id)
+            .first()
+        )
+
+        if execution is None:
+            logger.warning(f"Execution {execution_id} not found")
+            return
+
+        if execution.status != models.ExecutionStatus.PENDING:
+            logger.warning(
+                f"Execution {execution_id} is not in PENDING state"
+            )
+            return
+
+        job = execution.job
+
+        logger.info(f"Starting execution_id={execution_id}")
+        logger.info(f"Job type={job.script_type}")
+
+        execution.status = models.ExecutionStatus.RUNNING
+        db.commit()
+
         if job.script_type == "python":
             result = subprocess.run(
                 ["python", "-c", job.script_content],
@@ -41,40 +48,45 @@ def execute_job(execution_id: int, db: Session):
         else:
             raise ValueError("Unsupported script type")
 
-        
-        logger.info(f"Return code: {result.returncode}")
+        MAX_OUTPUT_SIZE = 10_000
 
-        MAX_OUTPUT_SIZE = 10_000  # characters
-
-        execution.stdout = result.stdout[:MAX_OUTPUT_SIZE]
-        execution.stderr = result.stderr[:MAX_OUTPUT_SIZE]
+        execution.stdout = (
+            result.stdout[:MAX_OUTPUT_SIZE] if result.stdout else None
+        )
+        execution.stderr = (
+            result.stderr[:MAX_OUTPUT_SIZE] if result.stderr else None
+        )
         execution.exit_code = result.returncode
         execution.finished_at = datetime.utcnow()
 
         if result.returncode == 0:
             execution.status = models.ExecutionStatus.SUCCESS
-            logger.info(f"STDOUT: {repr(result.stdout)}")
+            logger.info(f"Execution {execution_id} succeeded")
         else:
             execution.status = models.ExecutionStatus.FAILED
-            logger.error(f"STDERR: {repr(result.stderr)}")
+            logger.error(
+                f"Execution {execution_id} failed with exit_code={result.returncode}"
+            )
 
-    except TimeoutExpired as e:
-        execution.stderr = "Execution timed out"
-        logger.error(execution.stderr)
+        db.commit()
+
+    except TimeoutExpired:
         execution.status = models.ExecutionStatus.FAILED
+        execution.stderr = "Execution timed out"
         execution.finished_at = datetime.utcnow()
         db.commit()
 
+        logger.error(f"Execution {execution_id} timed out")
+
     except Exception as e:
-        execution.stderr = str(e)
-        logger.error("Executor Exception: {execution.stderr}")
         execution.status = models.ExecutionStatus.FAILED
+        execution.stderr = str(e)
         execution.finished_at = datetime.utcnow()
+        db.commit()
+
+        logger.exception(
+            f"Unhandled exception during execution {execution_id}"
+        )
 
     finally:
-        if execution.finished_at is None:
-            execution.finished_at = datetime.utcnow()
-            db.commit()
-            db.close()
-
-    db.commit()
+        db.close()
