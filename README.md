@@ -262,12 +262,6 @@ These are **intentional design choices** for clarity.
 
 ---
 
-## 🧾 Resume Summary
-
-> Designed and implemented an asynchronous job execution platform using FastAPI and SQLAlchemy, featuring execution tracking, failure handling, and safety mechanisms such as timeouts and output limits.
-
----
-
 ## 🙌 Author
 
 Built as a learning and portfolio project to demonstrate backend system design and asynchronous execution patterns.
