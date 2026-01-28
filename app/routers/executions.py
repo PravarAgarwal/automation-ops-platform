@@ -6,6 +6,8 @@ from app import models, schemas
 
 from app.services.executor import execute_job
 
+from typing import List
+
 router = APIRouter(
     prefix="/executions", tags=["executions"]
 )
@@ -17,6 +19,11 @@ def get_execution(execution_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Execution not found")
     
     return execution
+
+@router.get("/job/{job_id}", response_model=List[schemas.JobExecutionResponse])
+def get_job_executions(job_id: int, db: Session = Depends(get_db)):
+    executions = db.query(models.JobExecution).filter(models.JobExecution.job_id == job_id).all()
+    return executions
 
 @router.post("/{job_id}/run")
 def run_job(job_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
