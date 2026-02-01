@@ -20,16 +20,24 @@ Contain no business logic
 If main.py grows large → structure is broken.
 '''
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.database import engine, Base
 from app import models
 from app.routers import jobs, health, executions
 
-# create all tables, tables should be created at the start of the code, so this line is here.
-Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Automation Ops Platform")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # ✅ runs once, before receiving requests
+    # create all tables, tables should be created at the start of the code, so this line is here.
+    Base.metadata.create_all(bind=engine)
+    yield
+    # ✅ runs once, on shutdown (optional cleanup)
+    # (Nothing to close for SQLAlchemy engine in this simple setup)
+
+app = FastAPI(title="Automation Ops Platform", lifespan=lifespan)
 
 app.include_router(jobs.router)
 app.include_router(health.router)
