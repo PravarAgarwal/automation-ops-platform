@@ -93,6 +93,8 @@ def update_job(job_id: int, job_update: schemas.JobUpdate, db: Session = Depends
         job.name = job_update.name
     if job_update.script_type is not None:
         job.script_type = job_update.script_type
+    if job_update.script_content is not None:
+        job.script_content = job_update.script_content
     db.commit()
     db.refresh(job)
     return job
