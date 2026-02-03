@@ -4,8 +4,22 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from app import models
 from app.config import logger
+from app.database import SessionLocal
 
-def execute_job(execution_id: int, db: Session):
+MAX_OUTPUT_SIZE = 10_000
+EXECUTION_TIMEOUT_SECONDS = 10
+
+def _mark_failed(db, execution, message:str):
+    execution.status = models.ExecutionStatus.FAILED
+    execution.stderr = message[:MAX_OUTPUT_SIZE]
+    execution.finished_at = datetime.utcnow()
+    db.commit()
+
+def execute_job(execution_id: int):
+    # creating private db instance for the background task
+    db = SessionLocal()
+    execution = None
+
     try:
         execution = (
             db.query(models.JobExecution)
@@ -46,9 +60,7 @@ def execute_job(execution_id: int, db: Session):
                 timeout=10,
             )
         else:
-            raise ValueError("Unsupported script type")
-
-        MAX_OUTPUT_SIZE = 10_000
+            _mark_failed(db, execution, "Unsupported script type")
 
         execution.stdout = (
             result.stdout[:MAX_OUTPUT_SIZE] if result.stdout else None
@@ -59,14 +71,11 @@ def execute_job(execution_id: int, db: Session):
         execution.exit_code = result.returncode
         execution.finished_at = datetime.utcnow()
 
-        if result.returncode == 0:
-            execution.status = models.ExecutionStatus.SUCCESS
-            logger.info(f"Execution {execution_id} succeeded")
-        else:
-            execution.status = models.ExecutionStatus.FAILED
-            logger.error(
-                f"Execution {execution_id} failed with exit_code={result.returncode}"
-            )
+        execution.status = (
+            models.ExecutionStatus.SUCCESS
+            if result.returncode == 0
+            else models.ExecutionStatus.FAILED
+        )
 
         db.commit()
 

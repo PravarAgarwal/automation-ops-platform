@@ -56,7 +56,7 @@ def run_job(job_id: int, background_tasks: BackgroundTasks, db: Session = Depend
     db.commit()
     db.refresh(execution)
 
-    background_tasks.add_task(execute_job, execution.id, SessionLocal())
+    background_tasks.add_task(execute_job, execution.id)
 
     return {
         "execution_id": execution.id,
