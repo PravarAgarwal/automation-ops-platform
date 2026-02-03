@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 
 from app import models, schemas # Classes created by me for the database and Pydantic schemas
 from app.database import SessionLocal, get_db
 
 from typing import List
+from app.services.executor import execute_job
 
 '''
 APIRouter → group endpoints
@@ -28,6 +29,36 @@ def create_job(job: schemas.JobCreate, db: Session = Depends(get_db)):
     # at this point (db.refresh(db_job)), db_job gets its ID from the DB
     db.refresh(db_job)
     return db_job
+
+@router.post("/{job_id}/run")
+def run_job(job_id: int, background_tasks : BackgroundTasks, db : Session = Depends(get_db)):
+    job = db.query(models.Job).filter(models.Job.id == job_id).first()
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    existing_execution = (
+        db.query(models.JobExecution)
+        .filter(
+            models.JobExecution.job_id == job.id,
+            models.JobExecution.status == models.ExecutionStatus.RUNNING,
+        )
+        .first()
+    )
+    if existing_execution:
+        raise HTTPException(status_code=409, detail="Job is already running")
+
+    execution = models.JobExecution(
+        job_id=job.id,
+        status=models.ExecutionStatus.PENDING,
+    )
+    db.add(execution)
+    db.commit()
+    db.refresh(execution)
+
+    background_tasks.add_task(execute_job, execution.id)
+
+    return {"execution_id": execution.id, 
+            "status": execution.status}
 
 @router.get("/", response_model=List[schemas.JobResponse])
 def get_jobs(db: Session = Depends(get_db)):
