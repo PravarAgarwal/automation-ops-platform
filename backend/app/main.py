@@ -22,6 +22,7 @@ If main.py grows large → structure is broken.
 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import engine, Base
 from app import models
@@ -38,6 +39,15 @@ async def lifespan(app: FastAPI):
     # (Nothing to close for SQLAlchemy engine in this simple setup)
 
 app = FastAPI(title="Automation Ops Platform", lifespan=lifespan)
+
+origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins = origins,
+    allow_credentials = True,
+    allow_headers = ["*"],
+    allow_methods = ["*"],
+)
 
 app.include_router(jobs.router)
 app.include_router(health.router)
